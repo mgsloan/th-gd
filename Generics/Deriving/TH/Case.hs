@@ -44,9 +44,12 @@ conCase' (CaseE disc (mapM open -> Just cases@((con1, _) : _))) defalt = do
       Just (Branch ps wrap, e)
         | null ps -> return $ LamE [wrap WildP] e
         | otherwise -> newName "x" >>= \n ->
-        lamE [AsP n `fmap` conP 'M1 [foldr (\p pat -> conP '(:*:) [eachP p, pat]) (eachP (last ps)) (init ps)]]
-               (letE [valD (wrap `fmap` wildP) (normalB [| $ascribe $ $(varE 'to) $ M1 $ $inj $(varE n) |]) []]
+          let cprod p p' = conP '(:*:) [eachP p, p']
+              pat = AsP n `fmap` conP 'M1 [foldr cprod (eachP (last ps)) (init ps)]
+              body = normalB [| $ascribe $ $(varE 'to) $ M1 $ $inj $(varE n) |]
+              expr = (letE [valD (wrap `fmap` wildP) body []]
                      (return e))
+          in lamE [pat] expr
         where eachP p = return $ ConP 'M1 [ConP 'K1 [p]]
       Nothing -> defalt [| $(varE 'to) . M1 . $inj |]
 conCase' _ _ = fail "the first argument must be a case where each branch is a simple constructor pattern (no guards, no where clauses)"
